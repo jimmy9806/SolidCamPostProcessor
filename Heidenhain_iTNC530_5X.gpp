@@ -1,7 +1,12 @@
 ; General Post Processor
-; Machine           : DMG DMU 40 T Hied 530
-; Type              : 5-axis Table Head
+; Machine           : DMG DMU 50 T Hied 530
+; Type              : 5-axis Table
 
+; Modified by Zhijie Yang to support DMU 50
+; Modification on 2018/07/26: 	Set all home positions to X-480 Y-1 M91
+;								Created function home_data_5x to delay M128 after the first G01 instruction
+; Modification on 2018/07/29:	Changed SEQ- in PLANE SPATIAL instruction to SEQ+ for a right direction
+;								Kept M126 instruction enabled after M128 instruction
 ;
 
 @init_post
@@ -92,7 +97,7 @@ endp
 	cPn                   = 'O'        ;0.70: Sets the Character(s) before program number (i.e. 'O', ':', or nothing)
 	iProgendmode          = 1          ;0.70: Sets the code for ending a program (1=M30,2=M2)
 	cPb                   = ''        ;0.70: Sets the Character(s) used for the beginning of file (i.e %)
-	cPe                   = 'END PGM '        ;0.70: Sets the Character(s) used for the beginning of file (i.e %)
+	cPe                   = 'END PGM '        ;0.70: Sets the Character(s) used for the ending of file (i.e %)
 	bCompTypeOutput       = false       ;0.70: True = Outputs the Cutter Compensation type as a message (i.e. (COMPENSATION-WEAR) )
 	bPostRevOutput        = false       ;0.70: True = Outputs the Post Revision as a message (i.e. (REV-0.61) )
 	bDateTimeOutput       = true       ;0.70: True = Outputs Date & Time
@@ -182,11 +187,11 @@ endp
 	;  Note: You can define up to 49 "Homing Lines" seperated by ";"
 	;  Note: Only use ";" if using more then 1 "Homing Line"
 	;  Note: Define string as empty '' to ignore Specific Homing Definition
-	sHomestrbegin         = '7:L Z-1 R0 FMAX M91 ;L X-1 Y-1 R0 FMAX M91 '     ; Program Begin Homing Definition
-	sHomestrrot           = '7:L Z-1 R0 FMAX M91 ;L X-1 Y-1 R0 FMAX M91 '                              ; Tool Change Homing Definition
-	sHomestrrotspc        = '7:L Z-1 R0 FMAX M91 ;L X-1 Y-1 R0 FMAX M91 '        ; Tool Change Homing Definition
-	sHomestrtc            = '7:L Z-1 R0 FMAX M91 ;L X-1 Y-1 R0 FMAX M91 '     ; Tool Change Homing Definition
-	sHomestrend           = '7:L Z-100 R0 FMAX M91 ;L X-1 Y-1 R0 FMAX M91 '     ; Program End Homing Definition
+	sHomestrbegin         = '7:L Z-1 R0 FMAX M91 ;L X-480 Y-1 R0 FMAX M91 '     ; Program Begin Homing Definition
+	sHomestrrot           = '7:L Z-1 R0 FMAX M91 ;L X-480 Y-1 R0 FMAX M91 '                              ; Tool Change Homing Definition
+	sHomestrrotspc        = '7:L Z-1 R0 FMAX M91 ;L X-480 Y-1 R0 FMAX M91 '        ; Tool Change Homing Definition
+	sHomestrtc            = '7:L Z-1 R0 FMAX M91 ;L X-480 Y-1 R0 FMAX M91 '     ; Tool Change Homing Definition
+	sHomestrend           = '7:L Z-1 R0 FMAX M91 ;L X-480 Y-1 R0 FMAX M91 '     ; Program End Homing Definition
 	sHomestrstpsame       = '7:L Z-1 R0 FMAX M91 ;L X-1 Y-1 R0 FMAX M91 '     ; M00 Same Tool Homing Definition
 	sHomestrstpdiff       = '7:L Z-1 R0 FMAX M91 ;L X-1 Y-1 R0 FMAX M91 '     ; M00 Different Tool Homing Definition
 
@@ -253,6 +258,9 @@ endp
 	call @usr_sof_progname
 	{NB,'BLK FORM 0.1 Z X'stock_x_minus' Y'stock_y_minus' Z'stock_z_minus' '}
 	{nb,'BLK FORM 0.2 X'stock_x_plus' Y'stock_y_plus' Z'stock_z_plus' '}
+	{nb,'CYCL DEF 247 DATUM SETTING ~'}
+	{nl,'    Q339=+1    ;DATUM NUMBER'}
+	{nb, 'M129'}
 	call @usr_sof_commentsbeforecodes
 	call @usr_sof_gmcodes
 	call @usr_sof_commentsaftercodes
@@ -546,8 +554,8 @@ endp
 	CALL @reset_of_4th5th_axis
 	if !bLimit_3axis
 		if save_job_type and (nPR1pos ne 0 or nPR2pos ne 0)
-			{nb, 'L B0 FMAX '}
-			{nb, 'L C0 FMAX '}
+			{nb, 'L B+0 FMAX '}
+			{nb, 'L C+0 FMAX '}
 		endif
 	endif
 	if bOptstpend
@@ -728,8 +736,8 @@ endp
 		CALL @reset_of_4th5th_axis
 		if !bLimit_3axis
 			if save_job_type
-				{nb, 'L B0 FMAX '}
-				{nb, 'L C0 FMAX '}
+				{nb, 'L B+0 FMAX '}
+				{nb, 'L C+0 FMAX '}
 				save_job_type = false
 			endif
 		endif
@@ -1198,9 +1206,13 @@ endp
 		if first_rapid_move ;eq True and change(xlpos) eq true and change(ylpos) eq true and change(zlpos) eq true
 			call @home_data
 			if X5_job_type
-				{nb,'L ' [cR2 nR2pos:cpos_f ' '] [cR1 nR1pos:cpos_f ' ']}
-				{'FMAX ' }
+				;{nb,'L ' [cR2 nR2pos:cpos_f ' '] [cR1 nR1pos:cpos_f ' ']}
+				;{'FMAX ' }
+				;{nb 'L'' X'xhpos ' Y'yhpos ' Z'zhpos ' ' }
 				{nb 'L'' X'xhpos ' Y'yhpos ' Z'zhpos ' ' }
+				{'FMAX ' }
+				call @home_data_5x
+				{nb,'L ' [cR2 nR2pos:cpos_f ' '] [cR1 nR1pos:cpos_f ' ']}
 			else
 ;				if abs(nR2pos) gt 0
 ;					{nb 'L'' Z'zlpos ' ' }
@@ -2101,6 +2113,23 @@ endp
 
 ;-------------------
 
+@home_data_5x
+	if !bLimit_3axis
+		if X5_job_type and (nPR1pos ne 0 or nPR2pos ne 0)
+			if X5_job_type ne save_job_type
+				if X5_job_type
+					{nb,'M128'}
+				endif
+				if rot_axis_type ne axis4_none
+					{nb,'M127'}
+				else
+					{nb,'M126 '}
+				endif
+			endif
+		endif
+	endif
+endp
+
 @home_data
 	Local numeric tshift_x tshift_y
 	local integer num
@@ -2110,13 +2139,13 @@ endp
 			{nb, 'L B0 FMAX '}
 			{nb, 'L C0 FMAX '}
 			if X5_job_type ne save_job_type
-				if X5_job_type
-					{nb,'M128'}
-				endif
+				;if X5_job_type
+					;{nb,'M128'}
+				;endif
 				if rot_axis_type ne axis4_none
 					{nb,'M127'}
-				else
-					{nb,'M126 '}
+				;else
+					;{nb,'M126 '}
 				endif
 			endif
 		endif
@@ -2140,7 +2169,7 @@ endp
 					num = 1
 				endif
 				if shift_x ne 0 or shift_y ne 0 or shift_z ne 0
-					{nb, 'PLANE SPATIAL SPA+0 SPB'nr2pos' SPC'nr1pos' TURN FMAX SEQ- TABLE ROT '}
+					{nb, 'PLANE SPATIAL SPA+0 SPB'nr2pos' SPC'nr1pos' TURN FMAX SEQ+ TABLE ROT '}
 					bDatum_Shifted = true
 				endif
 			endif
