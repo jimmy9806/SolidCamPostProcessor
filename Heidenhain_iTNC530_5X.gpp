@@ -1209,10 +1209,9 @@ endp
 				;{nb,'L ' [cR2 nR2pos:cpos_f ' '] [cR1 nR1pos:cpos_f ' ']}
 				;{'FMAX ' }
 				;{nb 'L'' X'xhpos ' Y'yhpos ' Z'zhpos ' ' }
-				{nb 'L'' X'xhpos ' Y'yhpos ' Z'zhpos ' ' }
-				{'FMAX ' }
-				call @home_data_5x
 				{nb,'L ' [cR2 nR2pos:cpos_f ' '] [cR1 nR1pos:cpos_f ' ']}
+				{'FMAX ' }
+				{nb 'L'' X'xhpos ' Y'yhpos ' Z'zhpos ' ' }
 			else
 ;				if abs(nR2pos) gt 0
 ;					{nb 'L'' Z'zlpos ' ' }
@@ -1238,6 +1237,12 @@ endp
 			{'FMAX ' }
 			bFeedToClear = false
 		endif
+		if first_rapid_move ;eq True and change(xlpos) eq true and change(ylpos) eq true and change(zlpos) eq true
+			if X5_job_type
+				call @home_data_5x
+			endif
+		endif
+
 	else
 		if X5_job_type
 			{nb,['L Z'zhpos ' ']}
